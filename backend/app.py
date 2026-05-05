@@ -503,15 +503,6 @@ def unsubscribe(email: str = Query(...)):
     return {"ok": True, "message": "Unsubscribed successfully."}
 
 
-@app.get("/api/debug/email")
-def debug_email(to: str = Query(...)):
-    """Endpoint temporal de debug — envia un email de prueba y retorna el resultado."""
-    import json as _json, urllib.request as _req
-    from backend.emails import send_email as _send
-    app_url = os.getenv("APP_URL", "")
-    ok = _send(to, "[DEBUG] PricePulse email test", f"<p>Test desde Railway via Gmail. APP_URL={app_url}</p>")
-    return {"ok": ok, "to": to, "provider": "gmail_smtp"}
-
 
 @app.on_event("startup")
 def startup():

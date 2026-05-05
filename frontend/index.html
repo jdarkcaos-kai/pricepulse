@@ -245,7 +245,18 @@ async function load() {
     const s = statsRes;
     document.getElementById('stat-tools').textContent    = s.tools_tracked ?? '–';
     document.getElementById('stat-changes').textContent  = s.changes_detected ?? '–';
-    document.getElementById('stat-users').textContent    = wlRes.count ?? '–';
+    const userCount = wlRes.count ?? 0;
+    const usersEl = document.getElementById('stat-users');
+    const usersLabel = document.querySelector('#stat-users + span');
+    if (userCount === 0) {
+      usersEl.textContent = 'Be the first';
+      usersEl.style.fontSize = '14px';
+      usersEl.style.color = 'var(--accent2)';
+      if (usersLabel) usersLabel.style.display = 'none';
+    } else {
+      usersEl.textContent = userCount;
+      if (usersLabel) usersLabel.style.display = '';
+    }
     document.getElementById('changes-count').textContent = s.changes_detected ?? '–';
     document.getElementById('header-count').textContent  = `${s.tools_tracked} tools`;
     document.getElementById('footer-tools').textContent   = s.tools_tracked ?? '–';
