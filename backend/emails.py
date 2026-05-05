@@ -12,28 +12,30 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-# ── Core sender ──────────────────────────────────────────────────
+# ── Core sender (Brevo) ──────────────────────────────────────────
 
 def send_email(to: str, subject: str, html: str) -> bool:
-    """Envia un email via Resend. Lee las variables de entorno en cada llamada."""
-    api_key    = os.getenv("RESEND_API_KEY", "")
-    from_email = os.getenv("FROM_EMAIL", "PricePulse <onboarding@resend.dev>")
+    """Envia un email via Brevo. Lee las variables de entorno en cada llamada."""
+    api_key    = os.getenv("BREVO_API_KEY", "")
+    from_email = os.getenv("FROM_EMAIL", "jdarkcaos@gmail.com")
+    from_name  = os.getenv("FROM_NAME", "PricePulse")
     if not api_key:
-        print(f"[EMAIL] Sin RESEND_API_KEY — email a {to} no enviado: {subject}")
+        print(f"[EMAIL] Sin BREVO_API_KEY — email a {to} no enviado: {subject}")
         return False
     try:
         payload = json.dumps({
-            "from": from_email,
-            "to":   [to],
-            "subject": subject,
-            "html": html,
+            "sender":      {"name": from_name, "email": from_email},
+            "to":          [{"email": to}],
+            "subject":     subject,
+            "htmlContent": html,
         }).encode()
         req = urllib.request.Request(
-            "https://api.resend.com/emails",
+            "https://api.brevo.com/v3/smtp/email",
             data=payload,
             headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type":  "application/json",
+                "api-key":      api_key,
+                "Content-Type": "application/json",
+                "Accept":       "application/json",
             },
             method="POST",
         )

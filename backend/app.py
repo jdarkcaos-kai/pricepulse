@@ -506,27 +506,28 @@ def unsubscribe(email: str = Query(...)):
 def debug_email(to: str = Query(...)):
     """Endpoint temporal de debug — envia un email de prueba y retorna el resultado."""
     import json as _json, urllib.request as _req
-    api_key    = os.getenv("RESEND_API_KEY", "")
-    from_email = os.getenv("FROM_EMAIL", "PricePulse <onboarding@resend.dev>")
+    api_key    = os.getenv("BREVO_API_KEY", "")
+    from_email = os.getenv("FROM_EMAIL", "jdarkcaos@gmail.com")
     app_url    = os.getenv("APP_URL", "")
 
     if not api_key:
-        return {"ok": False, "error": "RESEND_API_KEY no disponible", "from": from_email, "app_url": app_url}
+        return {"ok": False, "error": "BREVO_API_KEY no disponible", "from": from_email, "app_url": app_url}
 
     try:
         payload = _json.dumps({
-            "from": from_email, "to": [to],
-            "subject": "[DEBUG] PricePulse email test",
-            "html": f"<p>Test desde Railway. APP_URL={app_url}</p>",
+            "sender":      {"name": "PricePulse", "email": from_email},
+            "to":          [{"email": to}],
+            "subject":     "[DEBUG] PricePulse email test",
+            "htmlContent": f"<p>Test desde Railway via Brevo. APP_URL={app_url}</p>",
         }).encode()
         request = _req.Request(
-            "https://api.resend.com/emails", data=payload,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            "https://api.brevo.com/v3/smtp/email", data=payload,
+            headers={"api-key": api_key, "Content-Type": "application/json", "Accept": "application/json"},
             method="POST",
         )
         with _req.urlopen(request, timeout=10) as r:
             body = _json.loads(r.read())
-            return {"ok": True, "resend_id": body.get("id"), "from": from_email, "api_key_prefix": api_key[:12]}
+            return {"ok": True, "brevo_id": body.get("messageId"), "from": from_email, "api_key_prefix": api_key[:12]}
     except Exception as e:
         return {"ok": False, "error": str(e), "api_key_prefix": api_key[:12] if api_key else "vacio"}
 
