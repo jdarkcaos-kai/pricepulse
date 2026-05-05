@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PricePulse — SaaS Price Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0e1a; --panel: #111827; --panel2: #1a2235;
+      --border: rgba(255,255,255,.08); --border2: rgba(255,255,255,.12);
+      --text: #f0f4ff; --muted: rgba(240,244,255,.5); --dim: rgba(240,244,255,.3);
+      --accent: #6366f1; --accent2: #818cf8; --green: #22c55e; --red: #ef4444;
+      --yellow: #eab308; --r: 12px; --r-sm: 8px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, sans-serif; min-height: 100vh; }
+
+    /* ── Header ── */
+    header { border-bottom: 1px solid var(--border); padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(10,14,26,.92); backdrop-filter: blur(12px); z-index: 100; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: grid; place-items: center; font-size: 16px; }
+    .logo h1 { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+    .logo span { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn { padding: 8px 18px; border-radius: var(--r-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border2); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── Hero ── */
+    .hero { max-width: 900px; margin: 0 auto; padding: 80px 24px 60px; text-align: center; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(99,102,241,.12); border: 1px solid rgba(99,102,241,.3); color: var(--accent2); border-radius: 999px; padding: 5px 14px; font-size: 12px; font-weight: 600; margin-bottom: 24px; }
+    .hero h2 { font-size: clamp(32px, 5vw, 52px); font-weight: 900; line-height: 1.1; letter-spacing: -.03em; margin-bottom: 20px; }
+    .hero h2 em { font-style: normal; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: 18px; color: var(--muted); max-width: 580px; margin: 0 auto 36px; line-height: 1.6; }
+    .waitlist-form { display: flex; gap: 10px; max-width: 460px; margin: 0 auto 16px; flex-wrap: wrap; justify-content: center; }
+    .waitlist-form input { flex: 1; min-width: 220px; background: var(--panel); border: 1px solid var(--border2); color: var(--text); padding: 12px 16px; border-radius: var(--r-sm); font-size: 14px; outline: none; }
+    .waitlist-form input:focus { border-color: var(--accent); }
+    .waitlist-form input::placeholder { color: var(--dim); }
+    #wl-msg { font-size: 13px; color: var(--muted); min-height: 20px; margin-bottom: 8px; }
+    #wl-msg.ok { color: var(--green); }
+    .hero-stats { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; margin-top: 48px; }
+    .hero-stat { text-align: center; }
+    .hero-stat strong { display: block; font-size: 28px; font-weight: 800; color: var(--text); }
+    .hero-stat span { font-size: 12px; color: var(--muted); }
+
+    /* ── Main layout ── */
+    .main { max-width: 1200px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ── Recent changes strip ── */
+    .changes-strip { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: 20px 24px; margin-bottom: 32px; }
+    .strip-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 14px; }
+    .changes-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .change-pill { display: inline-flex; align-items: center; gap: 8px; background: var(--panel2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; font-size: 12px; }
+    .change-pill .tool-logo { font-size: 14px; }
+    .change-pill .change-badge { font-weight: 700; }
+    .change-badge.increase { color: var(--red); }
+    .change-badge.decrease { color: var(--green); }
+    .change-badge.new_tier, .change-badge.restructure { color: var(--yellow); }
+
+    /* ── Filters ── */
+    .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .search-input { flex: 1; min-width: 200px; background: var(--panel); border: 1px solid var(--border2); color: var(--text); padding: 10px 14px; border-radius: var(--r-sm); font-size: 14px; outline: none; }
+    .search-input:focus { border-color: var(--accent); }
+    .cat-btn { padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all .15s; white-space: nowrap; }
+    .cat-btn:hover, .cat-btn.active { background: rgba(99,102,241,.15); border-color: var(--accent); color: var(--accent2); }
+
+    /* ── Tools grid ── */
+    .tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .tool-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; cursor: pointer; transition: all .15s; position: relative; }
+    .tool-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(99,102,241,.12); }
+    .tool-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .tool-logo { font-size: 24px; width: 40px; height: 40px; background: var(--panel2); border-radius: var(--r-sm); display: grid; place-items: center; flex-shrink: 0; }
+    .tool-info h3 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .tool-info p { font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .tool-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .cat-tag { font-size: 10px; font-weight: 600; background: rgba(99,102,241,.1); color: var(--accent2); border-radius: 4px; padding: 2px 7px; }
+    .free-tag { font-size: 10px; font-weight: 600; background: rgba(34,197,94,.1); color: var(--green); border-radius: 4px; padding: 2px 7px; }
+    .watchers-tag { font-size: 10px; color: var(--dim); margin-left: auto; }
+    .tool-pricing { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .plan-chip { font-size: 11px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; }
+    .plan-chip.free-plan { border-color: rgba(34,197,94,.2); color: var(--green); }
+    .plan-chip span { color: var(--muted); }
+    .change-indicator { position: absolute; top: 14px; right: 14px; font-size: 10px; font-weight: 700; }
+    .changed { color: var(--red); }
+
+    /* ── Modal ── */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); z-index: 200; place-items: center; }
+    .overlay.open { display: grid; }
+    .modal { background: var(--panel); border: 1px solid var(--border2); border-radius: var(--r); padding: 28px; width: min(640px, 95vw); max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .modal-logo { font-size: 32px; width: 52px; height: 52px; background: var(--panel2); border-radius: var(--r-sm); display: grid; place-items: center; }
+    .modal-title h2 { font-size: 20px; font-weight: 800; }
+    .modal-title a { font-size: 12px; color: var(--accent2); text-decoration: none; }
+    .modal-title a:hover { text-decoration: underline; }
+    .modal-close { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .modal-close:hover { color: var(--text); background: var(--panel2); }
+    .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 20px 0 10px; }
+    .plans-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .plans-table th { text-align: left; padding: 8px 12px; background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+    .plans-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .plans-table tr:last-child td { border-bottom: none; }
+    .price-val { font-weight: 700; color: var(--text); }
+    .price-val.free { color: var(--green); }
+    .price-val.contact { color: var(--muted); font-weight: 400; font-style: italic; }
+    .changes-timeline { display: flex; flex-direction: column; gap: 8px; }
+    .timeline-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--panel2); border-radius: var(--r-sm); border-left: 3px solid transparent; font-size: 13px; }
+    .timeline-item.increase { border-left-color: var(--red); }
+    .timeline-item.decrease { border-left-color: var(--green); }
+    .timeline-item.new_tier, .timeline-item.restructure { border-left-color: var(--yellow); }
+    .timeline-date { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .timeline-plan { font-weight: 600; flex: 1; }
+    .timeline-price { color: var(--muted); font-size: 12px; }
+    .timeline-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+    .timeline-badge.increase { background: rgba(239,68,68,.12); color: var(--red); }
+    .timeline-badge.decrease { background: rgba(34,197,94,.12); color: var(--green); }
+    .timeline-badge.new_tier, .timeline-badge.restructure { background: rgba(234,179,8,.12); color: var(--yellow); }
+    .watch-row { display: flex; gap: 10px; margin-top: 16px; }
+    .watch-row input { flex: 1; background: var(--panel2); border: 1px solid var(--border2); color: var(--text); padding: 10px 14px; border-radius: var(--r-sm); font-size: 13px; outline: none; }
+    .watch-row input:focus { border-color: var(--accent); }
+    #watch-msg { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 18px; }
+
+    /* ── Footer ── */
+    footer { border-top: 1px solid var(--border); padding: 24px 32px; text-align: center; font-size: 12px; color: var(--dim); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      header { padding: 0 16px; }
+      .hero { padding: 48px 16px 40px; }
+      .hero h2 { font-size: 28px; }
+      .tools-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📈</div>
+    <h1>PricePulse <span>beta</span></h1>
+  </div>
+  <div class="header-actions">
+    <span id="header-count" style="font-size:12px;color:var(--muted)"></span>
+    <button class="btn btn-primary" onclick="document.getElementById('wl-email').focus();document.getElementById('wl-email').scrollIntoView({behavior:'smooth'})">Get alerts</button>
+  </div>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <div class="hero-badge">📊 <span id="changes-count">15</span> price changes tracked</div>
+  <h2>Stop being surprised by<br/><em>SaaS price increases</em></h2>
+  <p>We track pricing for 35+ popular SaaS tools and alert you the moment something changes. Never get caught off guard again.</p>
+
+  <div class="waitlist-form">
+    <input id="wl-email" type="email" placeholder="you@company.com" autocomplete="email"/>
+    <button class="btn btn-primary" onclick="joinWaitlist()">Get free alerts →</button>
+  </div>
+  <div id="wl-msg"></div>
+
+  <div class="hero-stats">
+    <div class="hero-stat"><strong id="stat-tools">35</strong><span>Tools tracked</span></div>
+    <div class="hero-stat"><strong id="stat-changes">15</strong><span>Price changes recorded</span></div>
+    <div class="hero-stat"><strong id="stat-users">–</strong><span>People watching</span></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ── Recent changes ── -->
+  <div class="changes-strip">
+    <div class="strip-title">🔔 Recent price changes</div>
+    <div class="changes-list" id="changes-list">Loading...</div>
+  </div>
+
+  <!-- ── Filters ── -->
+  <div class="filters">
+    <input class="search-input" id="search" type="search" placeholder="Search tools..." autocomplete="off"/>
+    <button class="cat-btn active" data-cat="" onclick="filterCat(this, '')">All</button>
+  </div>
+
+  <!-- ── Grid ── -->
+  <div class="tools-grid" id="tools-grid">
+    <div style="padding:40px;text-align:center;color:var(--muted);grid-column:1/-1">Loading tools...</div>
+  </div>
+
+</div>
+
+<!-- ── Modal ── -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-logo" id="modal-logo">🔧</div>
+      <div class="modal-title">
+        <h2 id="modal-name">-</h2>
+        <a id="modal-url" href="#" target="_blank">-</a>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <p id="modal-desc" style="font-size:13px;color:var(--muted);margin-bottom:4px;"></p>
+    <div style="display:flex;gap:8px;margin-top:8px;" id="modal-tags"></div>
+
+    <div class="section-label">Current pricing</div>
+    <table class="plans-table">
+      <thead><tr><th>Plan</th><th>Monthly</th><th>Annual</th></tr></thead>
+      <tbody id="modal-plans"></tbody>
+    </table>
+
+    <div class="section-label">Price change history</div>
+    <div class="changes-timeline" id="modal-changes">
+      <div style="color:var(--muted);font-size:13px;padding:8px">No changes recorded yet.</div>
+    </div>
+
+    <div class="section-label">Get alerted when price changes</div>
+    <div class="watch-row">
+      <input id="watch-email" type="email" placeholder="your@email.com"/>
+      <button class="btn btn-primary" onclick="watchTool()">Watch →</button>
+    </div>
+    <div id="watch-msg"></div>
+  </div>
+</div>
+
+<footer>
+  PricePulse — Tracking SaaS pricing so you don't have to.
+  <span id="footer-tools">35</span> tools · <span id="footer-changes">15</span> changes recorded
+</footer>
+
+<script>
+const API = '';
+let allTools = [];
+let allChanges = [];
+let currentTool = null;
+let activeCat = '';
+
+async function load() {
+  try {
+    const [statsRes, toolsRes, changesRes] = await Promise.all([
+      fetch(`${API}/api/stats`).then(r=>r.json()),
+      fetch(`${API}/api/tools`).then(r=>r.json()),
+      fetch(`${API}/api/changes`).then(r=>r.json()),
+    ]);
+    const wlRes = await fetch(`${API}/api/waitlist/count`).then(r=>r.json());
+
+    // Stats
+    const s = statsRes;
+    document.getElementById('stat-tools').textContent    = s.tools_tracked ?? '–';
+    document.getElementById('stat-changes').textContent  = s.changes_detected ?? '–';
+    document.getElementById('stat-users').textContent    = wlRes.count ?? '–';
+    document.getElementById('changes-count').textContent = s.changes_detected ?? '–';
+    document.getElementById('header-count').textContent  = `${s.tools_tracked} tools`;
+    document.getElementById('footer-tools').textContent   = s.tools_tracked ?? '–';
+    document.getElementById('footer-changes').textContent = s.changes_detected ?? '–';
+
+    allTools   = toolsRes.tools || [];
+    allChanges = changesRes.changes || [];
+
+    buildCatFilters(allTools);
+    renderChanges(allChanges);
+    renderTools(allTools);
+  } catch(e) {
+    document.getElementById('tools-grid').innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--muted);grid-column:1/-1">Error loading data.</div>';
+  }
+}
+
+function buildCatFilters(tools) {
+  const cats = [...new Set(tools.map(t=>t.category))].filter(Boolean).sort();
+  const wrap = document.querySelector('.filters');
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.dataset.cat = cat;
+    btn.textContent = cat;
+    btn.onclick = () => filterCat(btn, cat);
+    wrap.appendChild(btn);
+  });
+}
+
+function filterCat(btn, cat) {
+  activeCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('search').addEventListener('input', applyFilters);
+});
+
+function applyFilters() {
+  const q = document.getElementById('search').value.toLowerCase();
+  let filtered = allTools;
+  if (activeCat) filtered = filtered.filter(t => t.category === activeCat);
+  if (q) filtered = filtered.filter(t => t.name.toLowerCase().includes(q) || (t.description||'').toLowerCase().includes(q));
+  renderTools(filtered);
+}
+
+function fmtPrice(p) {
+  if (p === null || p === undefined) return '<span class="price-val contact">Custom</span>';
+  if (p === 0) return '<span class="price-val free">Free</span>';
+  return `<span class="price-val">$${p}/mo</span>`;
+}
+
+function renderTools(tools) {
+  const grid = document.getElementById('tools-grid');
+  if (!tools.length) {
+    grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);grid-column:1/-1">No tools found.</div>';
+    return;
+  }
+  // Mark tools with recent changes
+  const changedSlugs = new Set(allChanges.slice(0,10).map(c=>c.slug));
+
+  grid.innerHTML = tools.map(t => {
+    const topPlans = (t.plans||[]).slice(0,3);
+    const plansHtml = topPlans.map(p => {
+      const cls = p.price_monthly === 0 ? 'plan-chip free-plan' : 'plan-chip';
+      const price = p.price_monthly === 0 ? 'Free' : p.price_monthly === null ? 'Custom' : `$${p.price_monthly}`;
+      return `<span class="${cls}">${p.plan_name} <span>${price}</span></span>`;
+    }).join('');
+    const changedBadge = changedSlugs.has(t.slug) ? '<span class="change-indicator changed">↑ changed</span>' : '';
+    return `
+    <div class="tool-card" onclick="openTool('${t.slug}')">
+      ${changedBadge}
+      <div class="tool-header">
+        <div class="tool-logo">${t.logo||'🔧'}</div>
+        <div class="tool-info">
+          <h3>${t.name}</h3>
+          <p>${t.description||''}</p>
+        </div>
+      </div>
+      <div class="tool-meta">
+        <span class="cat-tag">${t.category||''}</span>
+        ${t.has_free ? '<span class="free-tag">Free tier</span>' : ''}
+        ${t.watchers > 0 ? `<span class="watchers-tag">👁 ${t.watchers}</span>` : ''}
+      </div>
+      <div class="tool-pricing">${plansHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderChanges(changes) {
+  const list = document.getElementById('changes-list');
+  if (!changes.length) { list.textContent = 'No changes yet.'; return; }
+  list.innerHTML = changes.slice(0,12).map(c => {
+    const arrow = c.change_type === 'increase' ? '↑' : c.change_type === 'decrease' ? '↓' : '~';
+    const cls = c.change_type;
+    const pct = c.change_pct ? ` ${c.change_pct > 0 ? '+' : ''}${c.change_pct}%` : '';
+    return `<span class="change-pill">
+      <span class="tool-logo">${c.logo||'🔧'}</span>
+      <span>${c.tool_name} · ${c.plan_name}</span>
+      <span class="change-badge ${cls}">${arrow}${pct}</span>
+    </span>`;
+  }).join('');
+}
+
+async function openTool(slug) {
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('modal-name').textContent = '...';
+  document.getElementById('modal-plans').innerHTML = '<tr><td colspan="3" style="color:var(--muted)">Loading...</td></tr>';
+  document.getElementById('modal-changes').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px">Loading...</div>';
+
+  const data = await fetch(`${API}/api/tools/${slug}`).then(r=>r.json());
+  currentTool = data;
+
+  document.getElementById('modal-logo').textContent = data.logo || '🔧';
+  document.getElementById('modal-name').textContent = data.name;
+  const urlEl = document.getElementById('modal-url');
+  urlEl.textContent = data.website || '';
+  urlEl.href = data.website ? `https://${data.website}` : '#';
+  document.getElementById('modal-desc').textContent = data.description || '';
+
+  const tags = document.getElementById('modal-tags');
+  tags.innerHTML = `<span class="cat-tag">${data.category||''}</span>` +
+    (data.plans?.some(p=>p.price_monthly===0) ? '<span class="free-tag">Free tier</span>' : '') +
+    (data.watchers > 0 ? `<span style="font-size:11px;color:var(--muted)">👁 ${data.watchers} watching</span>` : '');
+
+  document.getElementById('modal-plans').innerHTML = (data.plans||[]).map(p => `
+    <tr>
+      <td style="font-weight:600">${p.plan_name}</td>
+      <td>${fmtPrice(p.price_monthly)}</td>
+      <td>${p.price_annual === p.price_monthly ? '<span style="color:var(--dim)">same</span>' : fmtPrice(p.price_annual)}</td>
+    </tr>`).join('') || '<tr><td colspan="3" style="color:var(--muted)">No pricing data.</td></tr>';
+
+  const changes = data.changes || [];
+  document.getElementById('modal-changes').innerHTML = changes.length
+    ? changes.map(c => `
+      <div class="timeline-item ${c.change_type}">
+        <span class="timeline-date">${(c.detected_at||'').slice(0,10)}</span>
+        <span class="timeline-plan">${c.plan_name}</span>
+        <span class="timeline-price">$${c.old_price} → $${c.new_price}</span>
+        <span class="timeline-badge ${c.change_type}">${c.change_type}</span>
+      </div>`).join('')
+    : '<div style="color:var(--muted);font-size:13px;padding:8px">No price changes recorded for this tool yet. <br>We\'ll notify you if anything changes.</div>';
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  currentTool = null;
+  document.getElementById('watch-email').value = '';
+  document.getElementById('watch-msg').textContent = '';
+}
+
+async function watchTool() {
+  const email = document.getElementById('watch-email').value.trim();
+  const msg = document.getElementById('watch-msg');
+  if (!email || !currentTool) { msg.textContent = 'Enter your email'; return; }
+  const res = await fetch(`${API}/api/watch`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email, tool_slug: currentTool.slug})
+  }).then(r=>r.json());
+  msg.textContent = `✓ Watching ${currentTool.name} · ${res.watchers} people watching`;
+  msg.style.color = 'var(--green)';
+}
+
+async function joinWaitlist() {
+  const email = document.getElementById('wl-email').value.trim();
+  const msg = document.getElementById('wl-msg');
+  if (!email) { msg.textContent = 'Enter your email first'; return; }
+  const res = await fetch(`${API}/api/waitlist`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email})
+  }).then(r=>r.json());
+  msg.textContent = res.message;
+  msg.className = 'ok';
+  document.getElementById('wl-email').value = '';
+  document.getElementById('stat-users').textContent = res.total;
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+load();
+</script>
+</body>
+</html>
