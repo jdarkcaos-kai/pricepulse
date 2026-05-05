@@ -502,6 +502,35 @@ def unsubscribe(email: str = Query(...)):
     return {"ok": True, "message": "Unsubscribed successfully."}
 
 
+@app.get("/api/debug/email")
+def debug_email(to: str = Query(...)):
+    """Endpoint temporal de debug — envia un email de prueba y retorna el resultado."""
+    import json as _json, urllib.request as _req
+    api_key    = os.getenv("RESEND_API_KEY", "")
+    from_email = os.getenv("FROM_EMAIL", "PricePulse <onboarding@resend.dev>")
+    app_url    = os.getenv("APP_URL", "")
+
+    if not api_key:
+        return {"ok": False, "error": "RESEND_API_KEY no disponible", "from": from_email, "app_url": app_url}
+
+    try:
+        payload = _json.dumps({
+            "from": from_email, "to": [to],
+            "subject": "[DEBUG] PricePulse email test",
+            "html": f"<p>Test desde Railway. APP_URL={app_url}</p>",
+        }).encode()
+        request = _req.Request(
+            "https://api.resend.com/emails", data=payload,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            method="POST",
+        )
+        with _req.urlopen(request, timeout=10) as r:
+            body = _json.loads(r.read())
+            return {"ok": True, "resend_id": body.get("id"), "from": from_email, "api_key_prefix": api_key[:12]}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "api_key_prefix": api_key[:12] if api_key else "vacio"}
+
+
 @app.on_event("startup")
 def startup():
     init_db()
