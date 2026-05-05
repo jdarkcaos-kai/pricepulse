@@ -12,35 +12,32 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-# ── Core sender (Brevo) ──────────────────────────────────────────
+# ── Core sender (Gmail SMTP) ─────────────────────────────────────
 
 def send_email(to: str, subject: str, html: str) -> bool:
-    """Envia un email via Brevo. Lee las variables de entorno en cada llamada."""
-    api_key    = os.getenv("BREVO_API_KEY", "")
-    from_email = os.getenv("FROM_EMAIL", "jdarkcaos@gmail.com")
+    """Envia un email via Gmail SMTP con App Password."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    gmail_user = os.getenv("GMAIL_USER", "")
+    gmail_pass = os.getenv("GMAIL_APP_PASSWORD", "")
     from_name  = os.getenv("FROM_NAME", "PricePulse")
-    if not api_key:
-        print(f"[EMAIL] Sin BREVO_API_KEY — email a {to} no enviado: {subject}")
+
+    if not gmail_user or not gmail_pass:
+        print(f"[EMAIL] Sin GMAIL_USER/GMAIL_APP_PASSWORD — email a {to} no enviado: {subject}")
         return False
     try:
-        payload = json.dumps({
-            "sender":      {"name": from_name, "email": from_email},
-            "to":          [{"email": to}],
-            "subject":     subject,
-            "htmlContent": html,
-        }).encode()
-        req = urllib.request.Request(
-            "https://api.brevo.com/v3/smtp/email",
-            data=payload,
-            headers={
-                "api-key":      api_key,
-                "Content-Type": "application/json",
-                "Accept":       "application/json",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return r.status in (200, 201)
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = f"{from_name} <{gmail_user}>"
+        msg["To"]      = to
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+            server.login(gmail_user, gmail_pass)
+            server.sendmail(gmail_user, [to], msg.as_string())
+        return True
     except Exception as e:
         print(f"[EMAIL ERROR] {e}")
         return False
