@@ -342,13 +342,22 @@ function renderChanges(changes) {
   const list = document.getElementById('changes-list');
   if (!changes.length) { list.textContent = 'No changes yet.'; return; }
   list.innerHTML = changes.slice(0,12).map(c => {
-    const arrow = c.change_type === 'increase' ? '↑' : c.change_type === 'decrease' ? '↓' : '~';
+    const typeMap = {
+      increase: { arrow: '↑', label: '' },
+      decrease: { arrow: '↓', label: '' },
+      new_tier: { arrow: '✦', label: 'new tier' },
+      restructure: { arrow: '~', label: 'restructured' },
+      new_product: { arrow: '✦', label: 'launched' },
+    };
+    const t = typeMap[c.change_type] || { arrow: '~', label: c.change_type };
     const cls = c.change_type;
-    const pct = c.change_pct ? ` ${c.change_pct > 0 ? '+' : ''}${c.change_pct}%` : '';
+    const pct = c.change_pct && Math.abs(c.change_pct) > 0
+      ? ` ${c.change_pct > 0 ? '+' : ''}${c.change_pct}%`
+      : (t.label ? ` ${t.label}` : '');
     return `<span class="change-pill">
       <span class="tool-logo">${c.logo||'🔧'}</span>
       <span>${c.tool_name} · ${c.plan_name}</span>
-      <span class="change-badge ${cls}">${arrow}${pct}</span>
+      <span class="change-badge ${cls}">${t.arrow}${pct}</span>
     </span>`;
   }).join('');
 }
@@ -388,7 +397,7 @@ async function openTool(slug) {
         <span class="timeline-date">${(c.detected_at||'').slice(0,10)}</span>
         <span class="timeline-plan">${c.plan_name}</span>
         <span class="timeline-price">$${c.old_price} → $${c.new_price}</span>
-        <span class="timeline-badge ${c.change_type}">${c.change_type}</span>
+        <span class="timeline-badge ${c.change_type}">${{increase:'increase',decrease:'decrease',new_tier:'new tier',restructure:'restructured',new_product:'launched',stable:'stable'}[c.change_type]||c.change_type}</span>
       </div>`).join('')
     : '<div style="color:var(--muted);font-size:13px;padding:8px">No price changes recorded for this tool yet. <br>We\'ll notify you if anything changes.</div>';
 }

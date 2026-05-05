@@ -318,6 +318,7 @@ def recent_changes(limit: int = Query(default=15, le=50)):
         SELECT pc.*, t.name as tool_name, t.slug, t.logo
         FROM price_changes pc
         JOIN tools t ON t.id = pc.tool_id
+        WHERE pc.change_type != 'stable'
         ORDER BY pc.detected_at DESC
         LIMIT ?
     """, (limit,)).fetchall()
