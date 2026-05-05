@@ -12,21 +12,18 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-FROM_EMAIL     = os.getenv("FROM_EMAIL", "PricePulse <onboarding@resend.dev>")
-APP_URL        = os.getenv("APP_URL", "https://pricepulse.up.railway.app")
-
-
 # ── Core sender ──────────────────────────────────────────────────
 
 def send_email(to: str, subject: str, html: str) -> bool:
-    """Envía un email via Resend. Retorna True si tuvo éxito."""
-    if not RESEND_API_KEY:
+    """Envia un email via Resend. Lee las variables de entorno en cada llamada."""
+    api_key    = os.getenv("RESEND_API_KEY", "")
+    from_email = os.getenv("FROM_EMAIL", "PricePulse <onboarding@resend.dev>")
+    if not api_key:
         print(f"[EMAIL] Sin RESEND_API_KEY — email a {to} no enviado: {subject}")
         return False
     try:
         payload = json.dumps({
-            "from": FROM_EMAIL,
+            "from": from_email,
             "to":   [to],
             "subject": subject,
             "html": html,
@@ -35,7 +32,7 @@ def send_email(to: str, subject: str, html: str) -> bool:
             "https://api.resend.com/emails",
             data=payload,
             headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type":  "application/json",
             },
             method="POST",
@@ -50,6 +47,7 @@ def send_email(to: str, subject: str, html: str) -> bool:
 # ── Base template ────────────────────────────────────────────────
 
 def _wrap(body: str) -> str:
+    app_url = os.getenv("APP_URL", "https://pricepulse-production-ee9b.up.railway.app")
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/></head>
@@ -61,7 +59,7 @@ def _wrap(body: str) -> str:
     {body}
     <div style="text-align:center;margin-top:28px;font-size:12px;color:rgba(240,244,255,.25);">
       PricePulse · Tracking SaaS pricing so you don't have to<br/>
-      <a href="{APP_URL}/unsubscribe?email={{email}}" style="color:rgba(240,244,255,.25);">Unsubscribe</a>
+      <a href="{app_url}/unsubscribe?email={{email}}" style="color:rgba(240,244,255,.25);">Unsubscribe</a>
     </div>
   </div>
 </body>
