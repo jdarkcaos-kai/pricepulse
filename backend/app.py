@@ -528,6 +528,9 @@ def debug_email(to: str = Query(...)):
         with _req.urlopen(request, timeout=10) as r:
             body = _json.loads(r.read())
             return {"ok": True, "brevo_id": body.get("messageId"), "from": from_email, "api_key_prefix": api_key[:12]}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="ignore")
+        return {"ok": False, "http_status": e.code, "brevo_error": body, "api_key_prefix": api_key[:12]}
     except Exception as e:
         return {"ok": False, "error": str(e), "api_key_prefix": api_key[:12] if api_key else "vacio"}
 
