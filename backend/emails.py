@@ -1,10 +1,11 @@
 """
-PricePulse — Email system via Resend API.
+PricePulse — Email system via SendGrid REST API v3.
 
 Variables de entorno necesarias:
-  RESEND_API_KEY  — API key de resend.com (gratis hasta 3000 emails/mes)
-  FROM_EMAIL      — ej: "PricePulse <alerts@tudominio.com>"
-  APP_URL         — URL pública del producto, ej: https://pricepulse.up.railway.app
+  SENDGRID_API_KEY  — API key de sendgrid.com
+  FROM_EMAIL        — email verificado como sender en SendGrid (ej: alerts@tudominio.com)
+  FROM_NAME         — nombre del remitente (default: PricePulse)
+  APP_URL           — URL pública del producto (ej: https://pricepulse-production-ee9b.up.railway.app)
 """
 import os
 import json
@@ -12,34 +13,44 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-# ── Core sender (Gmail SMTP) ─────────────────────────────────────
+
+# ── Core sender (SendGrid REST v3) ───────────────────────────────
 
 def send_email(to: str, subject: str, html: str) -> bool:
-    """Envia un email via Gmail SMTP con App Password."""
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
-    gmail_user = os.getenv("GMAIL_USER", "")
-    gmail_pass = os.getenv("GMAIL_APP_PASSWORD", "")
+    api_key    = os.getenv("SENDGRID_API_KEY", "")
+    from_email = os.getenv("FROM_EMAIL", "")
     from_name  = os.getenv("FROM_NAME", "PricePulse")
 
-    if not gmail_user or not gmail_pass:
-        print(f"[EMAIL] Sin GMAIL_USER/GMAIL_APP_PASSWORD — email a {to} no enviado: {subject}")
+    if not api_key:
+        print(f"[EMAIL] No SENDGRID_API_KEY — email no enviado a {to}: {subject}")
         return False
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"{from_name} <{gmail_user}>"
-        msg["To"]      = to
-        msg.attach(MIMEText(html, "html"))
+    if not from_email:
+        print(f"[EMAIL] No FROM_EMAIL — email no enviado a {to}: {subject}")
+        return False
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
-            server.login(gmail_user, gmail_pass)
-            server.sendmail(gmail_user, [to], msg.as_string())
-        return True
+    payload = {
+        "personalizations": [{"to": [{"email": to}]}],
+        "from": {"email": from_email, "name": from_name},
+        "subject": subject,
+        "content": [{"type": "text/html", "value": html}],
+    }
+    try:
+        req = urllib.request.Request(
+            "https://api.sendgrid.com/v3/mail/send",
+            data=json.dumps(payload).encode(),
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return resp.status in (200, 202)
+    except urllib.error.HTTPError as e:
+        print(f"[EMAIL ERROR] SendGrid HTTP {e.code}: {e.reason} — to={to}")
+        return False
     except Exception as e:
-        print(f"[EMAIL ERROR] {e}")
+        print(f"[EMAIL ERROR] {type(e).__name__}: {e} — to={to}")
         return False
 
 
@@ -68,6 +79,7 @@ def _wrap(body: str) -> str:
 # ── Templates ────────────────────────────────────────────────────
 
 def tpl_waitlist_confirm(email: str, total: int) -> str:
+    app_url = os.getenv("APP_URL", "https://pricepulse-production-ee9b.up.railway.app")
     body = f"""
     <div style="background:#111827;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:32px;text-align:center;">
       <div style="font-size:44px;margin-bottom:16px;">✅</div>
@@ -85,7 +97,7 @@ def tpl_waitlist_confirm(email: str, total: int) -> str:
         </div>
       </div>
 
-      <a href="{APP_URL}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:14px;">Browse all tracked tools →</a>
+      <a href="{app_url}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:14px;">Browse all tracked tools →</a>
     </div>"""
     return _wrap(body).replace("{email}", email)
 
@@ -103,6 +115,7 @@ def _plan_row(p: dict) -> str:
 
 
 def tpl_watch_confirm(email: str, tool_name: str, tool_logo: str, tool_slug: str, plans: list) -> str:
+    app_url = os.getenv("APP_URL", "https://pricepulse-production-ee9b.up.railway.app")
     plan_rows = "".join(_plan_row(p) for p in plans[:5])
     body = f"""
     <div style="background:#111827;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:28px;">
@@ -123,7 +136,7 @@ def tpl_watch_confirm(email: str, tool_name: str, tool_logo: str, tool_slug: str
         <tbody>{plan_rows}</tbody>
       </table>
 
-      <a href="{APP_URL}" style="display:block;background:#6366f1;color:#fff;text-decoration:none;text-align:center;padding:12px;border-radius:8px;font-weight:700;font-size:14px;">View on PricePulse →</a>
+      <a href="{app_url}" style="display:block;background:#6366f1;color:#fff;text-decoration:none;text-align:center;padding:12px;border-radius:8px;font-weight:700;font-size:14px;">View on PricePulse →</a>
     </div>"""
     return _wrap(body).replace("{email}", email)
 
@@ -138,7 +151,8 @@ def tpl_price_change_alert(
     new_price: float,
     change_pct: Optional[float],
     change_type: str,
-) -> str:
+) -> tuple:
+    app_url = os.getenv("APP_URL", "https://pricepulse-production-ee9b.up.railway.app")
     is_increase = change_type == "increase"
     color     = "#ef4444" if is_increase else "#22c55e"
     arrow     = "↑" if is_increase else "↓"
@@ -174,7 +188,7 @@ def tpl_price_change_alert(
         </div>
       </div>
 
-      <a href="{APP_URL}" style="display:block;background:#6366f1;color:#fff;text-decoration:none;text-align:center;padding:12px;border-radius:8px;font-weight:700;font-size:14px;">View full pricing history →</a>
+      <a href="{app_url}" style="display:block;background:#6366f1;color:#fff;text-decoration:none;text-align:center;padding:12px;border-radius:8px;font-weight:700;font-size:14px;">View full pricing history →</a>
     </div>
 
     <div style="background:#111827;border:1px solid rgba(255,255,255,.05);border-radius:8px;padding:16px;font-size:13px;color:rgba(240,244,255,.5);line-height:1.6;">
@@ -194,7 +208,7 @@ def tpl_price_change_waitlist(
     change_type: str,
     n_changes_this_week: int = 1,
 ) -> tuple:
-    """Para usuarios de la waitlist (resumen, no alerta inmediata)."""
+    app_url = os.getenv("APP_URL", "https://pricepulse-production-ee9b.up.railway.app")
     is_increase = change_type == "increase"
     color   = "#ef4444" if is_increase else "#22c55e"
     arrow   = "↑" if is_increase else "↓"
@@ -214,6 +228,6 @@ def tpl_price_change_waitlist(
         </div>
         <div style="color:{color};font-weight:800;">{pct_str}</div>
       </div>
-      <a href="{APP_URL}" style="display:block;background:#6366f1;color:#fff;text-decoration:none;text-align:center;padding:12px;border-radius:8px;font-weight:700;font-size:14px;">See all changes →</a>
+      <a href="{app_url}" style="display:block;background:#6366f1;color:#fff;text-decoration:none;text-align:center;padding:12px;border-radius:8px;font-weight:700;font-size:14px;">See all changes →</a>
     </div>"""
     return _wrap(body).replace("{email}", email), subj
